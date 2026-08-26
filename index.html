@@ -91,6 +91,7 @@
   .produce.dash{color:var(--text-faint);}
   .empty-row td{text-align:center;color:var(--text-faint);padding:30px;}
   .empty-row td{font-size:13px;color:var(--text-muted);padding:42px 30px;}
+  .data-notice{display:none;margin:-2px 0 12px;padding:9px 12px;border-left:3px solid var(--low);background:var(--low-bg);color:var(--low);font-size:12px;}
 
   .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;align-items:center;justify-content:center;}
   .modal-bg.show{display:flex;}
@@ -141,7 +142,7 @@
     <img class="brand-logo" src="logo.png" alt="Lamesa Fios e Cabos Elétricos">
     <div>
       <h1>Controle de Estoque</h1>
-      <div class="sub">Posição de bobinas por produto · limites definidos no código-fonte</div>
+      <div class="sub">Posição de bobinas por produto</div>
     </div>
   </div>
   <div class="header-right">
@@ -172,6 +173,8 @@
   <label class="btn" id="btn-import-pdf" for="pdf-file">Importar estoque</label>
   <div class="btn" id="btn-export-pdf">Exportar produção PDF</div>
 </div>
+
+<div class="data-notice" id="data-notice" role="status"></div>
 
 <table>
   <thead>
@@ -605,10 +608,10 @@ const PRODUCT_LIMITS = Object.fromEntries(
   ])
 );
 
-// Regras: negativo = Diferenca < 0; critico = abaixo de min;
+// Regras: negativo = estoque abaixo de zero; critico = abaixo de min;
 // atencao = abaixo de medio; ok = a partir do nivel ok.
 const STOCK_STATUS_RULES = {
-  negative: {field:'diferenca', test:value=>value < 0},
+  negative: {field:'qty', test:value=>value < 0},
   crit: {field:'qty', limit:'min'},
   att: {field:'qty', limit:'medio'},
   ok: {field:'qty', limit:'ok'}
@@ -624,6 +627,7 @@ const EXCLUDED_PRODUCTION_CODES = new Set([
 let products = [];
 let activeFilter = 'all';
 let searchTerm = '';
+let hasImportedData = false;
 
 function defaultDataset(){
   return DEFAULT_PRODUCTS.map(([code,name,unit,qty])=>({
@@ -635,7 +639,6 @@ function defaultDataset(){
 }
 
 async function loadData(){
-  let hasImportedData = false;
   try{
     const meta = await window.storage.get('estoque-meta', false);
     hasImportedData = Boolean(meta && meta.value);
@@ -650,6 +653,7 @@ async function loadData(){
       products = [];
     }
   }
+  if(!Array.isArray(products)) products = [];
   products.forEach(product=>{
     const limits = PRODUCT_LIMITS[product.code];
     if(limits){
@@ -694,13 +698,16 @@ function statusOf(p){
   if(p[critRule.field] < p[critRule.limit]) return 'crit';
   const attentionRule = STOCK_STATUS_RULES.att;
   if(p[attentionRule.field] < p[attentionRule.limit]) return 'att';
-  if(p.qty < STOCK_STATUS_RULES.ok.limit) return 'att';
+  if(p.qty < p.ok) return 'att';
   return 'ok';
 }
 const STATUS_LABEL = {negative:'Negativo', crit:'Crítico', att:'Atenção', ok:'Ok', none:'Definir limites'};
 
 function render(){
   const tbody = document.getElementById('tbody');
+  const dataNotice = document.getElementById('data-notice');
+  dataNotice.textContent = hasImportedData ? '' : 'Importe o PDF do estoque para analisar os dados';
+  dataNotice.style.display = hasImportedData ? 'none' : 'block';
   tbody.innerHTML = '';
   let counts = {negative:0, crit:0, att:0, ok:0, none:0};
   const term = searchTerm.trim().toLowerCase();
@@ -876,27 +883,22 @@ async function extractPdfText(file){
 }
 
 async function importParsedProducts(parsed){
-  let updated = 0, added = 0;
-  parsed.forEach(item=>{
-    const existing = products.find(product=>product.code===item.code);
-    if(existing){
-      existing.qty = item.qty;
-      existing.name = item.name;
-      existing.unit = item.unit;
-      existing.pedidos = item.pedidos;
-      existing.pesoDif = item.pesoDif;
-      existing.diferenca = item.diferenca;
-      updated++;
-    }else{
-      products.push({code:item.code, name:item.name, unit:item.unit, qty:item.qty, pedidos:item.pedidos, pesoDif:item.pesoDif, diferenca:item.diferenca, min:0, medio:0, ok:0});
-      added++;
-    }
+  products = parsed.map(item=>{
+    const limits = PRODUCT_LIMITS[item.code];
+    return {
+      ...item,
+      name: limits?.descricao ?? item.name,
+      min: limits?.min ?? 0,
+      medio: limits?.medio ?? 0,
+      ok: limits?.maximo ?? limits?.ok ?? 0
+    };
   });
+  hasImportedData = true;
   await saveProducts();
   await saveMeta();
   document.getElementById('last-update').textContent = new Date().toLocaleString('pt-BR');
   render();
-  return {updated, added};
+  return {loaded: parsed.length};
 }
 
 async function loadPdfExportLibraries(){
@@ -1111,7 +1113,7 @@ document.getElementById('pdf-file').addEventListener('change', async (event)=>{
     const parsed = parseImportedPdfText(text);
     if(parsed.length===0) throw new Error('Nenhum produto reconhecido');
     const result = await importParsedProducts(parsed);
-    button.textContent = `${result.added} novos / ${result.updated} atualizados`;
+    button.textContent = `${result.loaded} produtos carregados`;
   }catch(error){
     console.error('Falha ao importar PDF', error);
     button.textContent = 'Falha ao importar';
@@ -1144,7 +1146,7 @@ function parseReport(text){
   return results;
 }
 
-document.getElementById('btn-process').addEventListener('click', ()=>{
+document.getElementById('btn-process').addEventListener('click', async ()=>{
   const text = document.getElementById('paste-area').value;
   if(!text.trim()){
     document.getElementById('parse-result').textContent = 'Cole o texto do relatório antes de processar.';
@@ -1155,22 +1157,8 @@ document.getElementById('btn-process').addEventListener('click', ()=>{
     document.getElementById('parse-result').textContent = 'Nenhum produto reconhecido nesse texto. Confira se o formato bate com o relatório de estoque.';
     return;
   }
-  let updated=0, added=0;
-  parsed.forEach(item=>{
-    const existing = products.find(p=>p.code===item.code);
-    if(existing){
-      existing.qty = item.qty;
-      updated++;
-    } else {
-      products.push({code:item.code, name:item.name, unit:item.unit, qty:item.qty, min:0, medio:0, ok:0});
-      added++;
-    }
-  });
-  document.getElementById('parse-result').innerHTML = `<b>${updated}</b> produtos atualizados, <b>${added}</b> novos adicionados.`;
-  saveProducts();
-  saveMeta();
-  document.getElementById('last-update').textContent = new Date().toLocaleString('pt-BR');
-  render();
+  const result = await importParsedProducts(parsed);
+  document.getElementById('parse-result').innerHTML = `<b>${result.loaded}</b> produtos carregados. Dados anteriores substituídos.`;
   setTimeout(()=>{
     document.getElementById('modal').classList.remove('show');
   }, 1400);
