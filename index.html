@@ -732,6 +732,7 @@ function render(){
     const oa = order[statusA], ob = order[statusB];
     if(oa!==ob) return oa-ob;
     if(statusA==='negative') return Number(b.diferenca) - Number(a.diferenca);
+    if(statusA==='crit' || statusA==='att') return Number(a.qty) - Number(b.qty);
     return a.name.localeCompare(b.name);
   });
 
@@ -1077,7 +1078,7 @@ document.getElementById('btn-export-pdf').addEventListener('click', async ()=>{
     const need = product.ok - product.qty;
     if(activeFilter !== 'all') return status === activeFilter;
     return need > 0 && status!=='none';
-  });
+  }).sort((a,b)=>Number(a.qty)-Number(b.qty));
   if(production.length===0){
     button.textContent = 'Nada a produzir';
     setTimeout(()=>{ button.textContent = original; }, 1800);
