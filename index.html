@@ -6,6 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* Cores e medidas principais usadas em toda a interface. */
   :root{
     --bg:#14171A; --panel:#1B1F22; --panel-2:#20262A; --border:#2A3237;
     --text:#E9EBEC; --text-muted:#8B959B; --text-faint:#5D666B;
@@ -16,6 +17,7 @@
     --ok:#4FB871; --ok-bg:#1B2E20;
     --none:#5D666B; --none-bg:#24282B;
   }
+  /* Regras gerais e tipografia da aplicação. */
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:28px 32px 60px;}
   h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;font-weight:600;}
@@ -28,6 +30,7 @@
   .header-right{text-align:right;font-size:11.5px;color:var(--text-faint);}
   .header-right .mono{color:var(--text-muted);}
 
+  /* Cartões de resumo e barra de filtros. */
   .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:13px 15px;}
   .card .n{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;}
@@ -52,6 +55,7 @@
   .btn.primary{background:var(--steel-dim);border-color:var(--steel-dim);color:#DDEFF6;}
   .btn.primary:hover{background:var(--steel);}
 
+  /* Tabela principal, indicadores de estoque e etiquetas de status. */
   table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow:hidden;}
   thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-faint);font-weight:500;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel-2);position:sticky;top:0;}
   tbody td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
@@ -93,6 +97,7 @@
   .empty-row td{font-size:13px;color:var(--text-muted);padding:42px 30px;}
   .data-notice{display:none;margin:-2px 0 12px;padding:9px 12px;border-left:3px solid var(--low);background:var(--low-bg);color:var(--low);font-size:12px;}
 
+  /* Janela usada para colar e processar um novo relatório de estoque. */
   .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;align-items:center;justify-content:center;}
   .modal-bg.show{display:flex;}
   .modal{background:var(--panel);border:1px solid var(--border);border-radius:8px;width:640px;max-width:92vw;max-height:85vh;overflow:auto;padding:22px 24px;}
@@ -103,6 +108,7 @@
   .parse-result{margin-top:12px;font-size:12px;color:var(--text-muted);}
   .parse-result b{color:var(--ok);}
   footer{margin-top:18px;font-size:11px;color:var(--text-faint);}
+  /* Tela de login e regra que alterna login e sistema após autenticação. */
   .login-screen{min-height:calc(100vh - 88px);display:flex;align-items:center;justify-content:center;}
   .login-box{width:360px;max-width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:28px;box-shadow:0 18px 50px rgba(0,0,0,.22);}
   .login-logo{display:block;width:190px;height:auto;margin:0 auto 22px;}
@@ -120,6 +126,7 @@
 </head>
 <body>
 
+<!-- Tela exibida enquanto o usuário ainda não entrou no sistema. -->
 <main class="login-screen" id="login-screen">
   <form class="login-box" id="login-form">
     <img class="login-logo" src="logo.png" alt="Lamesa Fios e Cabos Elétricos">
@@ -135,6 +142,7 @@
   </form>
 </main>
 
+<!-- Conteúdo principal do controle de estoque. -->
 <div class="app-shell">
 
 <header>
@@ -151,6 +159,7 @@
   </div>
 </header>
 
+<!-- Indicadores resumidos por situação do estoque. -->
 <div class="summary">
   <div class="card"><div class="n" id="s-total">0</div><div class="l">Produtos</div></div>
   <div class="card crit"><div class="n" id="s-negative">0</div><div class="l">Negativo</div></div>
@@ -159,6 +168,7 @@
   <div class="card ok"><div class="n" id="s-ok">0</div><div class="l">Ok</div></div>
 </div>
 
+<!-- Busca, filtros e ações de importação/exportação. -->
 <div class="toolbar">
   <input type="text" id="search" placeholder="Buscar produto ou código...">
   <div class="filters">
@@ -176,6 +186,7 @@
 
 <div class="data-notice" id="data-notice" role="status"></div>
 
+<!-- A tabela é preenchida dinamicamente pela função render(). -->
 <table>
   <thead>
     <tr>
@@ -194,6 +205,7 @@
 
 <footer>Os limites ficam salvos neste dispositivo. Cole uma nova posição de estoque a qualquer momento para atualizar as quantidades sem perder os limites já definidos.</footer>
 
+<!-- Modal para colar o texto de um relatório de estoque. -->
 <div class="modal-bg" id="modal">
   <div class="modal">
     <h2>Importar nova posição de estoque</h2>
@@ -210,6 +222,7 @@
 </div>
 
 <script>
+// Os produtos padrão são usados como catálogo inicial e referência dos limites.
 const DEFAULT_PRODUCTS = [
 ["0004001722","Fio de Cobre Nu Mole 1,24 mm","kg",-1821],
 ["0004001725","Fio de Cobre Nu Mole 1,38 mm","kg",1110],
@@ -620,14 +633,18 @@ const STOCK_STATUS_RULES = {
 const EXCLUDED_PRODUCTION_CODES = new Set([
   '512500250619', '512500250719', '512500251019', '512500251219', '512500251419',
   '512500350619', '512500350719', '512500351019', '512500351219', '512500351419',
-  '512500450619', '512500450719', '512500451019', '512500451219', '512500451419'
+  '512500450619', '512500450719', '512500451019', '512500451219', '512500451419' , 
+  '512500451219', '512500451419' ,'0095001516' , '0004001722' , '0004001725' , 
+  '0004001728' , '0004001737'
 ]);
 
+// Estado temporário da aplicação durante a sessão atual.
 let products = [];
 let activeFilter = 'all';
 let searchTerm = '';
 let hasImportedData = false;
 
+// Converte o catálogo padrão para o formato usado pela tabela.
 function defaultDataset(){
   return DEFAULT_PRODUCTS.map(([code,name,unit,qty])=>({
     code, name, unit, qty,
@@ -637,6 +654,7 @@ function defaultDataset(){
   }));
 }
 
+// Recupera produtos e data da última atualização no armazenamento local do VS Code.
 async function loadData(){
   try{
     const meta = await window.storage.get('estoque-meta', false);
@@ -672,23 +690,28 @@ async function loadData(){
   render();
 }
 
+// Salva a lista atual de produtos para que ela permaneça disponível depois.
 async function saveProducts(){
   try{ await window.storage.set('estoque-produtos', JSON.stringify(products), false); }
   catch(e){ console.error('Falha ao salvar', e); }
 }
+// Salva apenas a informação de quando a última importação foi feita.
 async function saveMeta(){
   try{ await window.storage.set('estoque-meta', JSON.stringify({lastUpdate:new Date().toLocaleString('pt-BR')}), false); }
   catch(e){}
 }
 
+// Formata números no padrão brasileiro, sem casas decimais.
 function fmt(n){
   return Number(n).toLocaleString('pt-BR',{maximumFractionDigits:0});
 }
 
+// Exibe um traço quando a quantidade ainda não existe.
 function displayQty(n){
   return n === undefined || n === null || Number.isNaN(Number(n)) ? '—' : fmt(n);
 }
 
+// Define o status pela diferença e pela quantidade disponível do produto.
 function statusOf(p){
   const negativeRule = STOCK_STATUS_RULES.negative;
   if(negativeRule.test(Number(p[negativeRule.field]))) return 'negative';
@@ -700,6 +723,7 @@ function statusOf(p){
 }
 const STATUS_LABEL = {negative:'Negativo', crit:'Crítico', att:'Atenção', ok:'Ok', none:'Definir limites'};
 
+// Recalcula os contadores, aplica busca/filtro e redesenha a tabela.
 function render(){
   const tbody = document.getElementById('tbody');
   const dataNotice = document.getElementById('data-notice');
@@ -775,11 +799,13 @@ function render(){
   });
 }
 
+// Atualiza a tabela enquanto o usuário pesquisa por código ou descrição.
 document.getElementById('search').addEventListener('input', (e)=>{
   searchTerm = e.target.value;
   render();
 });
 
+// Troca o status selecionado e redesenha somente os produtos correspondentes.
 document.querySelectorAll('.fbtn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
@@ -789,14 +815,17 @@ document.querySelectorAll('.fbtn').forEach(btn=>{
   });
 });
 
+// Fecha o modal sem alterar os dados atuais.
 document.getElementById('btn-cancel').addEventListener('click', ()=>{
   document.getElementById('modal').classList.remove('show');
 });
 
+// Converte números no formato brasileiro, como "1.234,56", para Number.
 function parseBrNumber(str){
   return parseFloat(str.replace(/\./g,'').replace(',','.'));
 }
 
+// Carrega PDF.js sob demanda para evitar carregar a biblioteca antes da importação.
 function loadPdfJs(){
   if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
   return new Promise((resolve,reject)=>{
@@ -808,6 +837,7 @@ function loadPdfJs(){
   });
 }
 
+// Lê o relatório de pedidos e identifica pedidos, estoque e diferença por produto.
 function parsePedidosReport(text){
   const lines = text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
   const rowRe = /^(\d{7,12})\s+(.+?)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)$/;
@@ -830,6 +860,7 @@ function parsePedidosReport(text){
   return results;
 }
 
+// Lê um relatório de produção já pronto como formato alternativo de entrada.
 function parseProductionReport(text){
   const lines = text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
   const rowRe = /^(\d{7,12})\s+(.+?)\s+(-?[\d.]+)\s*(kg|m)\s+(Crítico|Atenção|Ok|Negativo)\s+([\d.]+)\s*(kg|m)$/i;
@@ -851,11 +882,13 @@ function parseProductionReport(text){
   return results;
 }
 
+// Tenta primeiro o formato de pedidos e usa produção como fallback.
 function parseImportedPdfText(text){
   const parsed = parsePedidosReport(text);
   return parsed.length ? parsed : parseProductionReport(text);
 }
 
+// Extrai o texto de todas as páginas do PDF, preservando a ordem visual das linhas.
 async function extractPdfText(file){
   const pdfjs = await loadPdfJs();
   if(!pdfjs) throw new Error('PDF.js não carregado');
@@ -882,6 +915,7 @@ async function extractPdfText(file){
   return pages.join('\n');
 }
 
+// Recria a lista de produtos com os dados importados e reaplica os limites configurados.
 async function importParsedProducts(parsed){
   products = parsed.map(item=>{
     const limits = PRODUCT_LIMITS[item.code];
@@ -901,6 +935,7 @@ async function importParsedProducts(parsed){
   return {loaded: parsed.length};
 }
 
+// Mantém disponível a biblioteca externa usada por uma versão auxiliar do exportador.
 async function loadPdfExportLibraries(){
   if(window.jspdf?.jsPDF) return;
   const loadScript = src=>new Promise((resolve,reject)=>{
@@ -918,6 +953,7 @@ async function loadPdfExportLibraries(){
   }
 }
 
+// Desenha uma tabela simples de produção em um documento jsPDF.
 function drawSimpleProductionTable(doc, production, startY){
   const left = 14;
   const widths = [29, 112, 32, 28, 39];
@@ -955,6 +991,7 @@ function drawSimpleProductionTable(doc, production, startY){
   });
 }
 
+// Escapa texto para que ele seja aceito com segurança dentro da sintaxe PDF.
 function pdfText(text){
   const ascii = String(text)
     .normalize('NFD')
@@ -964,6 +1001,7 @@ function pdfText(text){
   return `(${ascii})`;
 }
 
+// Monta manualmente o PDF final, distribuindo as linhas entre várias páginas.
 function createNativeProductionPdf(production){
   const pageWidth = 842;
   const pageHeight = 595;
@@ -1050,6 +1088,7 @@ function createNativeProductionPdf(production){
   return new Blob([pdf], {type:'application/pdf'});
 }
 
+// Prepara o logo como imagem, caso seja necessário usá-lo em um PDF.
 async function loadLogoForPdf(){
   return new Promise((resolve, reject)=>{
     const img = new Image();
@@ -1069,6 +1108,7 @@ async function loadLogoForPdf(){
   });
 }
 
+// Filtra e ordena os produtos antes de gerar o relatório de produção.
 document.getElementById('btn-export-pdf').addEventListener('click', async ()=>{
   const button = document.getElementById('btn-export-pdf');
   const original = button.textContent;
@@ -1101,6 +1141,7 @@ document.getElementById('btn-export-pdf').addEventListener('click', async ()=>{
   setTimeout(()=>{ button.textContent = original; }, 2200);
 });
 
+// Recebe o arquivo escolhido, extrai seu texto e importa os produtos encontrados.
 document.getElementById('pdf-file').addEventListener('change', async (event)=>{
   const file = event.target.files[0];
   event.target.value = '';
@@ -1121,6 +1162,7 @@ document.getElementById('pdf-file').addEventListener('change', async (event)=>{
   setTimeout(()=>{ button.textContent = original; }, 2200);
 });
 
+// Lê o relatório de posição diária, agrupando código e linha "Total do Produto".
 function parseReport(text){
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
   const codeLineRe = /^(\d{10})\s+(.+?)\s+(KG|MT)\s+EXP-BOB\b/;
@@ -1146,6 +1188,7 @@ function parseReport(text){
   return results;
 }
 
+// Processa o texto colado no modal e substitui a posição atual do estoque.
 document.getElementById('btn-process').addEventListener('click', async ()=>{
   const text = document.getElementById('paste-area').value;
   if(!text.trim()){
@@ -1164,6 +1207,7 @@ document.getElementById('btn-process').addEventListener('click', async ()=>{
   }, 1400);
 });
 
+// Elementos e credenciais usados pelo controle de acesso da tela.
 const loginForm = document.getElementById('login-form');
 const loginError = document.getElementById('login-error');
 const isAuthenticated = sessionStorage.getItem('estoque-authenticated') === 'true';
@@ -1176,11 +1220,13 @@ const USERS = {
   
 };
 
+// Esconde o login e inicia o carregamento dos dados do sistema.
 function showSystem(){
   document.body.classList.add('authenticated');
   loadData();
 }
 
+// Valida as credenciais e mantém a autenticação somente durante esta sessão.
 loginForm.addEventListener('submit', event=>{
   event.preventDefault();
   const username = document.getElementById('login-user').value.trim();
@@ -1195,6 +1241,7 @@ loginForm.addEventListener('submit', event=>{
   }
 });
 
+// Se o usuário já entrou nesta sessão, abre diretamente o sistema.
 if(isAuthenticated) showSystem();
 </script>
 </body>
