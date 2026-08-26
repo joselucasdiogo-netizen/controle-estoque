@@ -608,13 +608,12 @@ const PRODUCT_LIMITS = Object.fromEntries(
   ])
 );
 
-// Regras: negativo = estoque abaixo de zero; critico = abaixo de min;
-// atencao = abaixo de medio; ok = a partir do nivel ok.
+// Regras fixas de classificação por quantidade em estoque.
 const STOCK_STATUS_RULES = {
-  negative: {field:'qty', test:value=>value < 0},
-  crit: {field:'qty', limit:'min'},
-  att: {field:'qty', limit:'medio'},
-  ok: {field:'qty', limit:'ok'}
+  negative: {field:'diferenca', test:value=>value < 0},
+  crit: {field:'qty', max:1000},
+  att: {field:'qty', min:1001, max:5000},
+  ok: {field:'qty', min:5001}
 };
 
 // Produtos que não devem aparecer no relatório PDF de produção.
@@ -693,12 +692,10 @@ function displayQty(n){
 function statusOf(p){
   const negativeRule = STOCK_STATUS_RULES.negative;
   if(negativeRule.test(Number(p[negativeRule.field]))) return 'negative';
-  if(p.min<=0 && p.medio<=0 && p.ok<=0) return 'none';
   const critRule = STOCK_STATUS_RULES.crit;
-  if(p[critRule.field] < p[critRule.limit]) return 'crit';
+  if(p[critRule.field] <= critRule.max) return 'crit';
   const attentionRule = STOCK_STATUS_RULES.att;
-  if(p[attentionRule.field] < p[attentionRule.limit]) return 'att';
-  if(p.qty < p.ok) return 'att';
+  if(p[attentionRule.field] >= attentionRule.min && p[attentionRule.field] <= attentionRule.max) return 'att';
   return 'ok';
 }
 const STATUS_LABEL = {negative:'Negativo', crit:'Crítico', att:'Atenção', ok:'Ok', none:'Definir limites'};
